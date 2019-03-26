@@ -18,7 +18,13 @@ Part 1: Fun with references
 Exercise 1: Consider a function inc that takes an int ref argument and
 has the side effect of incrementing the integer stored in the
 ref. What is an appropriate type for the return value? What should the
-type for the function as a whole be? *)
+type for the function as a whole be? 
+
+return value: unit
+
+int ref -> unit
+
+*)
 
 
 (*.....................................................................
@@ -29,8 +35,8 @@ might want to add a "rec", or use a different argument list, or no
 argument list at all but binding to an anonymous function instead.)
 .....................................................................*)
 
-let inc _ =
-  failwith "inc not implemented" ;;
+let inc (x : int ref) : unit =
+ 	x := !x + 1 ;;
 
 (*.....................................................................
 Exercise 3: Write a function named remember that returns the last string
@@ -50,8 +56,13 @@ As usual, you shouldn't feel beholden to how the definition is
 introduced in the skeleton code below.
 .....................................................................*)
 
-let remember _ =
-  failwith "remember not implemented" ;;
+
+let remember =
+	let old = ref "" in    (* only runs this line once *)
+	fun (news : string) ->
+		let temp = !old in 
+		old := news; temp ;;  
+
 
 (*====================================================================
 Part 2: Gensym
@@ -95,8 +106,11 @@ shouldn't feel beholden to how the definition is introduced in the
 skeleton code below. (We'll stop mentioning this now.)
 .....................................................................*)
 
-let gensym (s : string) : string =
-  failwith "gensym not implemented" ;;
+let gensym =
+  let first = ref 0 in 
+  fun (s : string) -> 
+  	let temp = first in 
+  	inc first; s ^ (string_of_int (!temp)) ;;
 
 (*====================================================================
 Part 3: Appending mutable lists
