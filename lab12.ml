@@ -2,6 +2,9 @@
                               CS51 Lab 12
                Imperative Programming and References
  *)
+(*
+                               SOLUTION
+ *)
 
 (*
 Objective:
@@ -18,14 +21,14 @@ Part 1: Fun with references
 Exercise 1: Consider a function inc that takes an int ref argument and
 has the side effect of incrementing the integer stored in the
 ref. What is an appropriate type for the return value? What should the
-type for the function as a whole be? 
+type for the function as a whole be? *)
 
-return value: unit
+(* ANSWER: The function is called for its side effect, not to return
+   an updated value, so the appropriate return type is unit. The type
+   of the function is thus
 
-int ref -> unit
-
-*)
-
+     int ref -> unit
+ *)
 
 (*.....................................................................
 Exercise 2: Now implement the function. (As usual, for this and
@@ -35,8 +38,8 @@ might want to add a "rec", or use a different argument list, or no
 argument list at all but binding to an anonymous function instead.)
 .....................................................................*)
 
-let inc (x : int ref) : unit =
- 	x := !x + 1 ;;
+let inc (n : int ref) : unit =
+  n := !n + 1 ;;
 
 (*.....................................................................
 Exercise 3: Write a function named remember that returns the last string
@@ -56,13 +59,24 @@ As usual, you shouldn't feel beholden to how the definition is
 introduced in the skeleton code below.
 .....................................................................*)
 
+let remember : string -> string =
+  let mem = ref "" in
+  fun (s : string) -> let v = !mem in
+                      mem := s;
+                      v ;;
 
-let remember =
-	let old = ref "" in    (* only runs this line once *)
-	fun (news : string) ->
-		let temp = !old in 
-		old := news; temp ;;  
+(* An alternative is to move the mem variable outside the function
+   definition, as:
 
+    let mem = ref "" ;;
+    let remember s =
+      let v = !mem in
+      mem := s;
+      v ;;
+
+   But this allows access to the contents of mem outside the remember
+   function, which is a failure of the abstraction that remember is
+   intended to implement. *)
 
 (*====================================================================
 Part 2: Gensym
@@ -106,11 +120,22 @@ shouldn't feel beholden to how the definition is introduced in the
 skeleton code below. (We'll stop mentioning this now.)
 .....................................................................*)
 
-let gensym =
-  let first = ref 0 in 
-  fun (s : string) -> 
-  	let temp = first in 
-  	inc first; s ^ (string_of_int (!temp)) ;;
+let gensym : string -> string =
+  let ctr = ref 0 in
+  fun s -> let v = s ^ string_of_int !ctr in
+           ctr := !ctr + 1;
+           v ;;
+
+(* An alternative implementation performs the incrementation before
+   the string formation, so that the return value need not be stored
+   explicitly. But the initial value for the counter must start one
+   earlier.
+
+    let gensym : string -> string =
+      let ctr = ref ~-1 in
+      fun s -> ctr := !ctr + 1;
+               s ^ string_of_int !ctr ;;
+ *)
 
 (*====================================================================
 Part 3: Appending mutable lists
@@ -139,8 +164,10 @@ a regular list to a mutable list, with behavior like this:
       Cons (1, {contents = Cons (2, {contents = Cons (3, {contents = Nil})})})
 ....................................................................*)
 
-let mlist_of_list (lst : 'a list) : 'a mlist =
-  failwith "mlist_of_list not implemented" ;;
+let rec mlist_of_list (lst : 'a list) : 'a mlist =
+  match lst with
+  | [] -> Nil
+  | hd :: tl -> Cons (hd, ref (mlist_of_list tl)) ;;
 
 (*.....................................................................
 Exercise 6: Define a function length to compute the length of an
@@ -153,14 +180,18 @@ in the book. (Don't worry about cycles. Yet.)
     - : int = 4
 .....................................................................*)
 
-let length (m : 'a mlist) : int =
-  failwith "length not implemented" ;;
+let rec length (m : 'a mlist) : int =
+  match m with
+  | Nil -> 0
+  | Cons (_hd, tl) -> 1 + length !tl ;;
 
 (*.....................................................................
 Exercise 7: What is the time complexity of the length function in
 O() notation in terms of the length of its list argument?
 .....................................................................*)
 
+(* ANSWER: The length function is linear in the length of its
+   argument: O(n). *)
 
 (*.....................................................................
 Exercise 8: Now, define a function mappend that takes a *non-empty*
@@ -171,33 +202,27 @@ think about before you get started:
  o What is an appropriate return type for the mappend function? (You
    can glean our intended answer from the examples below, but try to
    think it through yourself first.
-#ifdef SOLN
 
       ANSWER: Since mappend is called for its side effect, unit is the
       appropriate return type. An alternative would be to return some
       indication as to whether the appending succeeded -- since it
       could fail if the first argument is Nil -- perhaps as an option
       type.
-#endif
 
  o  Why is there a restriction that the first list be non-empty?
-#ifdef SOLN
 
       ANSWER: The mlist type only allows tails of lists to be mutated,
       so there is no way to mutate the empty list, and therefore no
       way to append to it.
-#endif
 
  o  What is the appropriate thing to do if mappend is called with an
     empty mutable list as first argument?
-#ifdef SOLN
 
       ANSWER: The return type of the function is unit, so there are
       only two options: return () or raise an exception. Arguably, the
       latter is a better choice, since an empty first argument is
       undoubtedly a sign of the code having gone wrong. We show both
       implementations below.
-#endif
 
 Examples of use:
 
@@ -230,8 +255,27 @@ Examples of use:
               {contents = Cons (5, {contents = Cons (6, {contents = Nil})})})})})})
 .....................................................................*)
 
-let mappend _ =
-  failwith "mappend not implemented" ;;
+let rec mappend (xs : 'a mlist) (ys : 'a mlist) : unit =
+  match xs with
+  | Nil -> ()
+  | Cons (_h, t) -> match !t with
+                    | Nil -> t := ys
+                    | Cons (_, _) as m -> mappend m ys ;;
+
+(* An alternative that raises an exception when called inappropriately:
+
+      let rec mappend (xs : 'a mlist) (ys : 'a mlist) : unit =
+        match xs with
+        | Nil -> invalid_arg "empty first argument of mappend"
+        | Cons (_h, t) -> match !t with
+                          | Nil -> t := ys
+                          | Cons (_, _) as m -> mappend m ys ;;
+
+   The invalid_arg function is defined in the Pervasives module to
+   raise an Invalid_argument exception, which is ideally suited for
+   this situation. Another option is to raise a Failure exception
+   (also defined in Pervasives, perhaps using the failwith function),
+   though Invalid_argument seems more suitable. *)
 
 (* What happens when you evaluate the following expressions
    sequentially in order?
@@ -329,7 +373,16 @@ module MakeImpQueue (A : sig
          Some h
       | Nil -> None
     let to_string q =
-      failwith "to_string not implemented"
+      
+      (* our solution for defining to_string: *)
+      let rec to_string' mlst =
+        match !mlst with
+        | Nil -> "||"
+        | Cons (h, t) ->
+           Printf.sprintf "%s -> %s" (A.to_string h) (to_string' t) in
+      to_string' q.front
+      (* end of our solution *)
+  
   end ;;
 
 (* To build an imperative queue, we apply the functor to an
